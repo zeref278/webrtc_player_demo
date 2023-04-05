@@ -26,11 +26,11 @@ class Session {
 class Signaling {
   Signaling();
 
-  JsonDecoder _decoder = JsonDecoder();
+  final JsonDecoder _decoder = JsonDecoder();
   SimpleWebSocket? _socket;
-  Map<String, Session> _sessions = {};
+  final Map<String, Session> _sessions = {};
 
-  List<MediaStream> _remoteStreams = <MediaStream>[];
+  final List<MediaStream> _remoteStreams = <MediaStream>[];
   Function(RTCPeerConnectionState state)? onRTCPeerConnectionStateChange;
   Function(SignalingState state)? onSignalingStateChange;
   Function(Session session, VideoState state)? onCallStateChange;
@@ -38,9 +38,7 @@ class Signaling {
   Function(Session session, MediaStream stream)? onAddRemoteStream;
   Function(Session session, MediaStream stream)? onRemoveRemoteStream;
   Function(dynamic event)? onPeersUpdate;
-  Function(Session session, RTCDataChannel dc, RTCDataChannelMessage data)?
-      onDataChannelMessage;
-  Function(Session session, RTCDataChannel dc)? onDataChannel;
+
   Function(Map<dynamic, dynamic>)? onInfoVideo;
   String _url = '';
 
@@ -48,13 +46,6 @@ class Signaling {
       WebRTC.platformIsWindows ? 'plan-b' : 'unified-plan';
 
   Map<String, dynamic> _iceServers = {};
-
-  final Map<String, dynamic> _config = {
-    'mandatory': {},
-    'optional': [
-      {'DtlsSrtpKeyAgreement': true},
-    ]
-  };
 
   final Map<String, dynamic> _dcConstraints = {
     'mandatory': {
@@ -91,7 +82,8 @@ class Signaling {
               screenSharing: false);
           _sessions[sessionId] = newSession;
           await newSession.pc?.setRemoteDescription(
-              RTCSessionDescription(description['sdp'], description['type']));
+            RTCSessionDescription(description['sdp'], description['type']),
+          );
           await _createAnswer(newSession, 'data');
 
           _candidates = data['candidates'];
@@ -176,10 +168,12 @@ class Signaling {
     var newSession = session ?? Session(sid: sessionId, pid: peerId);
 
     print('_iceServers: ..................$_iceServers');
-    RTCPeerConnection pc = await createPeerConnection({
-      ..._iceServers,
-      ...{'sdpSemantics': sdpSemantics}
-    }, _config);
+    RTCPeerConnection pc = await createPeerConnection(
+      {
+        ..._iceServers,
+        ...{'sdpSemantics': sdpSemantics}
+      },
+    );
     if (media != 'data') {
       switch (sdpSemantics) {
         case 'plan-b':
@@ -234,22 +228,9 @@ class Signaling {
       });
     };
 
-    pc.onDataChannel = (channel) {
-      _addDataChannel(newSession, channel);
-    };
-
     newSession.pc = pc;
 
     return newSession;
-  }
-
-  void _addDataChannel(Session session, RTCDataChannel channel) {
-    channel.onDataChannelState = (e) {};
-    channel.onMessage = (RTCDataChannelMessage data) {
-      onDataChannelMessage?.call(session, channel, data);
-    };
-    session.dc = channel;
-    onDataChannel?.call(session, channel);
   }
 
   Future<void> _createAnswer(Session session, String media) async {
